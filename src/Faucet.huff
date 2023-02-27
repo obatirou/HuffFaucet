@@ -1,0 +1,278 @@
+
+/// @dev The owner address size.
+#define constant OWNER_ADDR_SIZE = 0x20
+
+/// @dev Offset for storage in memory.
+#define constant OWNER_OFFSET = 0x0c
+
+/// @dev Max withdrawal per user.
+#define constant MAX_WITHDRAWAL = 0x16345785D8A0000 // 100000000000000000 or 0.1 ether
+
+/// @dev One day in second.
+#define constant ONE_DAY = 0x15180 // 86400s
+
+/// @dev Name storage
+#define constant NAME_SLOT = FREE_STORAGE_POINTER()
+
+// Interface
+#define function MAX_WITHDRAWAL() pure returns(uint256)
+#define function owner() view returns(address)
+#define function name() view returns (bytes32)
+#define function accountLastWithdrawal(address account) view returns (uint256)
+#define function receive() payable returns ()
+#define function withdraw(uint256 withdraw_amount) nonpayable returns ()
+#define function changeName(bytes32 name) nonpayable returns ()
+
+// Events
+#define event Deposit(address indexed from, uint256 amount)
+#define event Withdrawal(address indexed to, uint256 amount)
+
+// Errors
+#define error NotOwner(address) // caller address 
+#define error ExceedMaxWithdrawalAmount(uint256) // amount
+#define error InsufficientBalanceFaucet(uint256) // amount
+#define error OneWithdrawalPerDay()
+#define error DepositZero()
+#define error EthTransferFailed()
+
+/// @dev Immutable owner address
+///      Copy the address at the end of the runtimeBytecode
+#define macro CONSTRUCTOR() = takes (0) returns (0) {
+    // Load MAIN bytecode size + owner address size in stack.
+    __codesize(MAIN) [OWNER_ADDR_SIZE] add                             // [runtimecode_size]
+    dup1                                                               // [runtimecode_size, runtimecode_size]
+
+    // Copy the MAIN bytecode to memory
+    __codesize(MAIN) codesize sub                                      // [offset, runtimecode_size, runtimecode_size]
+    0x00                                                               // [destOffset, offset, runtimecode_size, runtimecode_size]
+    codecopy                                                           // [runtimecode_size]
+
+    // copy msg.sender at the end of the runtime bytecode
+    caller                                                             // [msg.sender, runtimecode_size]
+    __codesize(MAIN)                                                   // [__codesize(MAIN), msg.sender, runtimecode_size]
+    mstore                                                             // [runtimecode_size]
+
+    0x4661756365740000000000000000000000000000000000000000000000000000 // ["Faucet", runtimecode_size]
+    [NAME_SLOT] sstore                                                 // [runtimecode_size]
+
+    // Return the runtime bytecode
+    0x00 return                                                         // []
+}
+
+/// @notice Only Owner modifier
+#define macro IS_OWNER() = takes (0) returns (0) {
+    COPY_OWNER_TO_MEMORY()                      // []
+    caller                                      // [msg.sender]
+    0x00 mload                                  // [32 bytes from mem, msg.sender]
+    0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF  // [20 bytes bitmask, 32 bytes from mem, msg.sender]
+    and                                         // [owner, msg.sender]
+    eq is_owner jumpi                           // []
+    __ERROR(NotOwner)                           // [error_selector]
+    0x00 mstore                                 // []
+    caller                                      // [msg.sender]
+    0x04 mstore                                 // []
+    0x24 0x00 revert                            // []
+
+    is_owner:
+}
+
+/// @dev Copy owner address to memory
+#define macro COPY_OWNER_TO_MEMORY() = takes (0) returns (0) {
+    [OWNER_ADDR_SIZE]  // [size]
+    dup1               // [size, size]
+    codesize sub       // [offset, size]
+    0x00     // [destOffset, offset, size]
+    codecopy           // []
+}
+
+/// @dev Withdraw eth for msg.sender
+#define macro WITHDRAW() = takes(0) returns (0) {
+    0x04 calldataload                    // [withdraw_amount]
+    dup1                                 // [withdraw_amount, withdraw_amount]
+    dup1                                 // [withdraw_amount, withdraw_amount, withdraw_amount]
+    
+    // revert if MAX_WITHDRAWAL < withdraw_amount
+    [MAX_WITHDRAWAL]                     // [MAX_WITHDRAWAL, withdraw_amount, withdraw_amount, withdraw_amount]
+    lt                                   // [MAX_WITHDRAWAL < withdraw_amount, withdraw_amount, withdraw_amount]
+    exceedMaxWithdrawalAmountJump jumpi  // [withdraw_amount, withdraw_amount]
+
+    // revert if address(this) < withdrawal amount
+    selfbalance                          // [address(this).balance, withdraw_amount, withdraw_amount]
+    lt                                   // [address(this).balance < withdraw_amount, withdraw_amoun]
+    insufficientBalanceFaucetJump jumpi  // [withdraw_amount]
+
+    // one withdrawal per day per user
+    // revert if accountLastWithdrawal + 1 day < timestamp
+    timestamp                           // [timestamp, withdraw_amount]
+    SLOADACCOUNTLASTWITHDRAWAL()        // [value, timestamp, withdraw_amount]
+    [ONE_DAY]                           // [1 days, value, timestamp, withdraw_amount]
+    add                                 // [1 days + value, timestamp, withdraw_amount]
+    gt                                  // [1 days + value > timestamp, withdraw_amount]
+    oneWithdrawalPerDayJump jumpi       // [withdraw_amount]
+
+    // store current timestamp for msg.sender
+    timestamp                          // [timestamp, withdraw_amount]
+    caller                             // [msg.sender, timestamp, withdraw_amount]
+    0x00                               // [offset, msg.sender, timestamp, withdraw_amount]
+    mstore                             // [timestamp, withdraw_amount]
+    0x20                               // [size, timestamp, withdraw_amount]
+    0x00                               // [offset, size, timestamp, withdraw_amount]
+    sha3                               // [slot, timestamp, withdraw_amount]
+    sstore                             // [withdraw_amount]
+
+    // transfer eth
+    0x00                               // [0x00, withdraw_amount]
+    dup1                               // [0x00, 0x00, withdraw_amount]
+    dup1                               // [0x00, 0x00, 0x00, withdraw_amount]
+    dup1                               // [0x00, 0x00, 0x00, 0x00, withdraw_amount]
+    0x04 calldataload                  // [withdraw_amount, 0x00, 0x00, 0x00, 0x00, withdraw_amount]
+    caller                             // [msg.sender, withdraw_amount, 0x00, 0x00, 0x00, 0x00, withdraw_amount]
+    gas                                // [gas, msg.sender, withdraw_amount, 0x00, 0x00, 0x00, 0x00, withdraw_amount]
+    call                               // [result, withdraw_amount]
+
+    // revert if transfer failed
+    iszero ethTransferFailedJump jumpi //  [result==0, withdraw_amount]
+
+    // emit withdraw event and return
+    0x00                               // [0x00, withdraw_amount]
+    mstore                             // []
+    caller                             // [msg.sender]
+    __EVENT_HASH(Withdrawal)           // [sig event, msg.sender]
+    0x20                               // [size, sig event, msg.sender]
+    0x00                               // [offset, size, sig event, msg.sender]
+    log2                               // []
+    0x00 dup1 return                   // []
+
+    exceedMaxWithdrawalAmountJump:
+        __ERROR(ExceedMaxWithdrawalAmount) // [error_selector, withdraw_amount, withdraw_amount]
+        0x00 mstore                        // [withdraw_amount, withdraw_amount]
+        0x04 mstore                        // [withdraw_amount]
+        0x24 0x00 revert                   // [withdraw_amount]
+    
+    insufficientBalanceFaucetJump:
+        __ERROR(InsufficientBalanceFaucet) // [error_selector, withdraw_amount]
+        0x00 mstore                        // [withdraw_amount]
+        0x04 mstore                        // []
+        0x24 0x00 revert
+    
+    oneWithdrawalPerDayJump:
+        __ERROR(OneWithdrawalPerDay)        // [error_selector]
+        0x00 mstore                         // []
+        0x04 0x00 revert
+
+    ethTransferFailedJump:
+        __ERROR(EthTransferFailed)          // [error_selector]
+        0x00 mstore                         // []
+        0x04 0x00 revert
+}
+
+#define macro SLOADACCOUNTLASTWITHDRAWAL() = takes(0) returns (1) {
+    caller                              // [msg.sender]
+    0x00                                // [offset, msg.sender]
+    mstore                              // []
+    0x20                                // [size]
+    0x00                                // [offset, size]
+    sha3                                // [slot]
+    sload                               // [value]
+}
+
+#define macro ACCOUNTLASTWITHDRAWAL() = takes(0) returns (0) {
+    SLOADACCOUNTLASTWITHDRAWAL()
+    0x00 mstore
+    0x20 0x00 return
+}
+
+#define macro MAX_WITHDRAWAL() = takes(0) returns (0) {
+    [MAX_WITHDRAWAL] 0x00 mstore
+    0x20 0x00 return
+}
+
+#define macro CHANGE_NAME() = takes(0) returns (0) {
+    IS_OWNER()
+    0x04 calldataload
+    [NAME_SLOT] sstore
+    0x00 0x00 return
+}
+#define macro NAME() = takes(0) returns (0) {
+    [NAME_SLOT] sload
+    0x00 mstore
+    0x20 0x00 return
+}
+
+#define macro RECEIVE() = takes(0) returns (0) {
+    // takes func sig
+    callvalue                // [msg.value]
+    0x00                     // [0x00, msg.value]
+    mstore                   // []
+    caller                   // [msg.sender]
+    __EVENT_HASH(Deposit)    // [sig event, msg.sender]
+    0x20                     // [size, sig event, msg.sender]
+    0x00                     // [offset, size, sig event, msg.sender]
+    log2                     // []
+    0x00 dup1 return         // []
+}
+
+#define macro OWNER() = takes(0) returns (0) {
+    COPY_OWNER_TO_MEMORY() // []
+    0x20 0x00 return
+}
+
+#define macro MAIN() = takes(0) returns (0) {
+    0x00 calldataload 0xE0 shr  
+
+    dup1 __FUNC_SIG(withdraw) eq withdrawJump jumpi
+
+    dup1 __FUNC_SIG(owner) eq ownerJump jumpi
+
+    dup1 __FUNC_SIG(accountLastWithdrawal) eq accountLastWithdrawalJump jumpi
+
+    dup1 __FUNC_SIG(MAX_WITHDRAWAL) eq MAX_WITHDRAWALJump jumpi
+
+    dup1 __FUNC_SIG(changeName) eq changeNameJump jumpi
+
+    dup1 __FUNC_SIG(name) eq nameJump jumpi
+
+    dup1 0x00000000 eq emptyCalldataJump jumpi 
+
+    noMatchJump jump
+
+    withdrawJump:
+        pop // clean stack, remove the func sig
+        WITHDRAW()
+    
+    ownerJump:
+        pop // clean stack, remove the func sig
+        OWNER()
+    
+    accountLastWithdrawalJump:
+        pop // clean stack, remove the func sig
+        ACCOUNTLASTWITHDRAWAL()
+
+    MAX_WITHDRAWALJump:
+        pop // clean stack, remove the func sig
+        MAX_WITHDRAWAL()
+
+    changeNameJump:
+        pop // clean stack, remove the func sig
+        CHANGE_NAME()
+    
+    nameJump:
+        pop // clean stack, remove the func sig
+        NAME()
+
+    emptyCalldataJump:
+        pop // clean stack, remove the func sig
+        callvalue receiveJump jumpi // Jump into the receive function if msg.value is not zero
+
+        // Deposit needs to be > 0
+        __ERROR(DepositZero) // [error_selector]
+        0x00 mstore          // []
+        0x04 0x00 revert
+
+        receiveJump:
+            RECEIVE()
+
+    noMatchJump:
+        pop // clean stack, remove the func sig
+        0x00 dup1 revert
+}

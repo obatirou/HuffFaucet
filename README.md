@@ -1,49 +1,27 @@
-<img align="right" width="150" height="150" top="100" src="./assets/blueprint.png">
 
-# huff-project-template • [![ci](https://github.com/huff-language/huff-project-template/actions/workflows/ci.yaml/badge.svg)](https://github.com/huff-language/huff-project-template/actions/workflows/ci.yaml) ![license](https://img.shields.io/github/license/huff-language/huff-project-template.svg) ![solidity](https://img.shields.io/badge/solidity-^0.8.15-lightgrey)
+# Huff Faucet
+Implementation of a faucet in Huff with differential fuzzing vs solidity implementation.  
 
-Versatile Huff Project Template using Foundry.
+Why ?   
+Only for fun !  
+A couple days to practice huff.
 
+Not reviewed by any peers, please open issues for fix, improvements, opti or anything you want.
 
 ## Getting Started
 
 ### Requirements
 
-The following will need to be installed in order to use this template. Please follow the links and instructions.
-
--   [Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)  
-    -   You'll know you've done it right if you can run `git --version`
--   [Foundry / Foundryup](https://github.com/gakonst/foundry)
-    -   This will install `forge`, `cast`, and `anvil`
-    -   You can test you've installed them right by running `forge --version` and get an output like: `forge 0.2.0 (92f8951 2022-08-06T00:09:32.96582Z)`
-    -   To get the latest of each, just run `foundryup`
--   [Huff Compiler](https://docs.huff.sh/get-started/installing/)
-    -   You'll know you've done it right if you can run `huffc --version` and get an output like: `huffc 0.3.0`
+-   [Foundry / Foundryup](https://github.com/foundry-rs/foundry) used: `forge 0.2.0 (e2fa2b5 2023-02-19T00:05:02.282096Z)`
+    
+-   [Huff Compiler](https://docs.huff.sh/get-started/installing/) used: `huffc 0.3.0`
 
 ### Quickstart
-
-1. Clone this repo or use template
-
-Click "Use this template" on [GitHub](https://github.com/huff-language/huff-project-template) to create a new repository with this repo as the initial state.
-
-Or run:
-
-```
-git clone https://github.com/huff-language/huff-project-template
-cd huff-project-template
-```
-
-2. Install dependencies
-
-Once you've cloned and entered into your repository, you need to install the necessary dependencies. In order to do so, simply run:
 
 ```shell
 forge install
 ```
 
-3. Build & Test
-
-To build and test your contracts, you can run:
 
 ```shell
 forge build
@@ -53,20 +31,11 @@ forge test
 For more information on how to use Foundry, check out the [Foundry Github Repository](https://github.com/foundry-rs/foundry/tree/master/forge) and the [foundry-huff library repository](https://github.com/huff-language/foundry-huff).
 
 
-## Blueprint
-
-```ml
-lib
-├─ forge-std — https://github.com/foundry-rs/forge-std
-├─ foundry-huff — https://github.com/huff-language/foundry-huff
-scripts
-├─ Deploy.s.sol — Deployment Script
-src
-├─ SimpleStore — A Simple Storage Contract in Huff
-test
-└─ SimpleStore.t — SimpleStoreTests
-```
-
+## Todo
+* Prevent withdraw 0 ?
+* Add invariant testing
+* Better naming
+* Cleanup and optimizations 
 
 ## License
 
