@@ -33,7 +33,7 @@ contract TestFaucet is Test {
         // By default in foundry, the block.timestamp is uint256(1)
         // We set a radom block.timestamp
         vm.warp(BLOCKTIMESTAMP_START);
-        
+
         vm.prank(OWNER);
         faucet = IFaucet(address(new Faucet()));
         vm.label(address(faucet), "Faucet");
@@ -295,7 +295,6 @@ contract TestFaucet is Test {
         faucet.changeName(newName);
         assertEq(faucet.name(), newName);
 
-
         // FaucetHuff
         assertEq(faucetHuff.name(), "Faucet");
         faucetHuff.changeName(newName);
@@ -306,7 +305,6 @@ contract TestFaucet is Test {
         // Faucet
         vm.expectRevert(abi.encodeWithSelector(Faucet.NotOwner.selector, address(this)));
         faucet.changeName(newName);
-
 
         // FaucetHuff
         vm.expectRevert(abi.encodeWithSelector(Faucet.NotOwner.selector, address(this)));
