@@ -81,7 +81,7 @@
     [OWNER_ADDR_SIZE]  // [size]
     dup1               // [size, size]
     codesize sub       // [offset, size]
-    0x00     // [destOffset, offset, size]
+    0x00               // [destOffset, offset, size]
     codecopy           // []
 }
 
@@ -104,7 +104,7 @@
     // one withdrawal per day per user
     // revert if accountLastWithdrawal + 1 day < timestamp
     timestamp                           // [timestamp, withdraw_amount]
-    SLOADACCOUNTLASTWITHDRAWAL()        // [value, timestamp, withdraw_amount]
+    LOAD_ACCOUNT_LAST_WITHDRAWAL()      // [value, timestamp, withdraw_amount]
     [ONE_DAY]                           // [1 days, value, timestamp, withdraw_amount]
     add                                 // [1 days + value, timestamp, withdraw_amount]
     gt                                  // [1 days + value > timestamp, withdraw_amount]
@@ -166,7 +166,7 @@
         0x04 0x00 revert
 }
 
-#define macro SLOADACCOUNTLASTWITHDRAWAL() = takes(0) returns (1) {
+#define macro LOAD_ACCOUNT_LAST_WITHDRAWAL() = takes(0) returns (1) {
     caller                              // [msg.sender]
     0x00                                // [offset, msg.sender]
     mstore                              // []
@@ -176,27 +176,27 @@
     sload                               // [value]
 }
 
-#define macro ACCOUNTLASTWITHDRAWAL() = takes(0) returns (0) {
-    SLOADACCOUNTLASTWITHDRAWAL()
-    0x00 mstore
-    0x20 0x00 return
+#define macro ACCOUNT_LAST_WITHDRAWAL() = takes(0) returns (0) {
+    LOAD_ACCOUNT_LAST_WITHDRAWAL()    // [value]
+    0x00 mstore                       // []
+    0x20 0x00 return                  // []
 }
 
 #define macro MAX_WITHDRAWAL() = takes(0) returns (0) {
-    [MAX_WITHDRAWAL] 0x00 mstore
-    0x20 0x00 return
+    [MAX_WITHDRAWAL] 0x00 mstore     // []
+    0x20 0x00 return                 // []
 }
 
 #define macro CHANGE_NAME() = takes(0) returns (0) {
-    IS_OWNER()
-    0x04 calldataload
-    [NAME_SLOT] sstore
-    0x00 0x00 return
+    IS_OWNER()                      // []
+    0x04 calldataload               // [name]
+    [NAME_SLOT] sstore              // []
+    0x00 0x00 return                // []
 }
 #define macro NAME() = takes(0) returns (0) {
-    [NAME_SLOT] sload
-    0x00 mstore
-    0x20 0x00 return
+    [NAME_SLOT] sload               // [name]
+    0x00 mstore                     // []
+    0x20 0x00 return                // []
 }
 
 #define macro RECEIVE() = takes(0) returns (0) {
@@ -214,65 +214,59 @@
 
 #define macro OWNER() = takes(0) returns (0) {
     COPY_OWNER_TO_MEMORY() // []
-    0x20 0x00 return
+    0x20 0x00 return       // []
 }
 
 #define macro MAIN() = takes(0) returns (0) {
-    0x00 calldataload 0xE0 shr  
+    0x00 calldataload 0xE0 shr                                                  // [func_selector]
 
-    dup1 __FUNC_SIG(withdraw) eq withdrawJump jumpi
-
-    dup1 __FUNC_SIG(owner) eq ownerJump jumpi
-
-    dup1 __FUNC_SIG(accountLastWithdrawal) eq accountLastWithdrawalJump jumpi
-
-    dup1 __FUNC_SIG(MAX_WITHDRAWAL) eq MAX_WITHDRAWALJump jumpi
-
-    dup1 __FUNC_SIG(changeName) eq changeNameJump jumpi
-
-    dup1 __FUNC_SIG(name) eq nameJump jumpi
-
-    dup1 0x00000000 eq emptyCalldataJump jumpi 
-
-    noMatchJump jump
+    dup1 __FUNC_SIG(withdraw)               eq withdrawJump              jumpi  // [func_selector]
+    dup1 __FUNC_SIG(owner)                  eq ownerJump                 jumpi  // [func_selector]
+    dup1 __FUNC_SIG(accountLastWithdrawal)  eq accountLastWithdrawalJump jumpi  // [func_selector]
+    dup1 __FUNC_SIG(MAX_WITHDRAWAL)         eq MAX_WITHDRAWALJump        jumpi  // [func_selector]
+    dup1 __FUNC_SIG(changeName)             eq changeNameJump            jumpi  // [func_selector]
+    dup1 __FUNC_SIG(name)                   eq nameJump                  jumpi  // [func_selector]
+    dup1 0x00000000                         eq emptyCalldataJump         jumpi  // [func_selector]
+    noMatchJump jump                                                            // [func_selector]
 
     withdrawJump:
-        pop // clean stack, remove the func sig
-        WITHDRAW()
+        pop                                                                     // []
+        WITHDRAW()                                                              // []
     
     ownerJump:
-        pop // clean stack, remove the func sig
-        OWNER()
+        pop                                                                     // []
+        OWNER()                                                                 // []
     
     accountLastWithdrawalJump:
-        pop // clean stack, remove the func sig
-        ACCOUNTLASTWITHDRAWAL()
+        pop                                                                     // []
+        ACCOUNT_LAST_WITHDRAWAL()                                               // []
 
     MAX_WITHDRAWALJump:
-        pop // clean stack, remove the func sig
-        MAX_WITHDRAWAL()
+        pop                                                                     // []
+        MAX_WITHDRAWAL()                                                        // []
 
     changeNameJump:
-        pop // clean stack, remove the func sig
-        CHANGE_NAME()
+        pop                                                                     // []
+        CHANGE_NAME()                                                           // []
     
     nameJump:
-        pop // clean stack, remove the func sig
-        NAME()
+        pop                                                                     // []
+        NAME()                                                                  // []
 
     emptyCalldataJump:
-        pop // clean stack, remove the func sig
-        callvalue receiveJump jumpi // Jump into the receive function if msg.value is not zero
+        pop                                                                     // []
+        callvalue receiveJump jumpi                                             // []
+        // Jump into the receive function if msg.value is not zero
 
         // Deposit needs to be > 0
-        __ERROR(DepositZero) // [error_selector]
-        0x00 mstore          // []
+        __ERROR(DepositZero)                                                    // [error_selector]
+        0x00 mstore                                                             // []
         0x04 0x00 revert
 
         receiveJump:
-            RECEIVE()
+            RECEIVE()                                                           // []
 
     noMatchJump:
-        pop // clean stack, remove the func sig
-        0x00 dup1 revert
+        pop                                                                     // []
+        0x00 dup1 revert                                                        // []
 }
