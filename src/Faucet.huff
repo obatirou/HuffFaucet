@@ -34,6 +34,7 @@
 #define error OneWithdrawalPerDay()
 #define error DepositZero()
 #define error EthTransferFailed()
+#define error NonPayable()
 
 /// @dev Immutable owner address
 ///      Copy the address at the end of the runtimeBytecode
@@ -87,6 +88,7 @@
 
 /// @dev Withdraw eth for msg.sender
 #define macro WITHDRAW() = takes(0) returns (0) {
+    NON_PAYABLE()                        // []
     0x04 calldataload                    // [withdraw_amount]
     dup1                                 // [withdraw_amount, withdraw_amount]
     dup1                                 // [withdraw_amount, withdraw_amount, withdraw_amount]
@@ -177,23 +179,27 @@
 }
 
 #define macro ACCOUNT_LAST_WITHDRAWAL() = takes(0) returns (0) {
+    NON_PAYABLE()                     // []
     LOAD_ACCOUNT_LAST_WITHDRAWAL()    // [value]
     0x00 mstore                       // []
     0x20 0x00 return                  // []
 }
 
 #define macro MAX_WITHDRAWAL() = takes(0) returns (0) {
+    NON_PAYABLE()                    // []
     [MAX_WITHDRAWAL] 0x00 mstore     // []
     0x20 0x00 return                 // []
 }
 
 #define macro CHANGE_NAME() = takes(0) returns (0) {
+    NON_PAYABLE()                   // []
     IS_OWNER()                      // []
     0x04 calldataload               // [name]
     [NAME_SLOT] sstore              // []
     0x00 0x00 return                // []
 }
 #define macro NAME() = takes(0) returns (0) {
+    NON_PAYABLE()                   // []
     [NAME_SLOT] sload               // [name]
     0x00 mstore                     // []
     0x20 0x00 return                // []
@@ -213,8 +219,18 @@
 }
 
 #define macro OWNER() = takes(0) returns (0) {
+    NON_PAYABLE()          // []
     COPY_OWNER_TO_MEMORY() // []
     0x20 0x00 return       // []
+}
+
+#define macro NON_PAYABLE() = takes(0) returns (0) {
+    callvalue               // [value]
+    iszero continue jumpi   // []
+    __ERROR(NonPayable)     // [error_selector]
+    0x00 mstore             // []
+    0x04 0x00 revert        // []
+    continue:               // []
 }
 
 #define macro MAIN() = takes(0) returns (0) {

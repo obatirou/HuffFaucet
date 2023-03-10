@@ -25,8 +25,12 @@ contract TestFaucet is Test {
 
     address OWNER = vm.addr(0xaaa);
 
+    // events
     event Deposit(address indexed from, uint256 amount);
     event Withdrawal(address indexed to, uint256 amount);
+
+    // errors
+    error NonPayable();
 
     /// @dev Setup the testing environment.
     function setUp() public {
@@ -317,5 +321,61 @@ contract TestFaucet is Test {
 
         // FaucetHuff
         assertEq(faucetHuff.owner(), OWNER);
+    }
+
+    /* -------------------------------------------------------------------------- */
+    /* ------------------------- Non payable tests Huff ------------------------- */
+    /* ------------ In solidity, functions are not payable by default ----------- */
+    /* -------------------------------------------------------------------------- */
+
+    function testFuzz_nonPayableFunctionsHuff(uint256 value, address account) public {
+        vm.assume(value > 0);
+        vm.deal(address(this), value);
+        vm.expectRevert(NonPayable.selector);
+        (bool success,) = address(faucetHuff).call{value: value}(
+            abi.encodeWithSelector(IFaucet.accountLastWithdrawal.selector, account)
+        );
+        assertTrue(success, "expectRevert: call did not revert");
+    }
+
+    function testFuzz_changeNameNonPayable(uint256 value, bytes32 newName) public {
+        vm.assume(value > 0);
+        vm.deal(address(this), value);
+        vm.expectRevert(NonPayable.selector);
+        (bool success,) =
+            address(faucetHuff).call{value: value}(abi.encodeWithSelector(IFaucet.changeName.selector, newName));
+        assertTrue(success, "expectRevert: call did not revert");
+    }
+
+    function testFuzz_MAX_WITHDRAWALNonPayable(uint256 value) public {
+        vm.assume(value > 0);
+        vm.deal(address(this), value);
+        vm.expectRevert(NonPayable.selector);
+        (bool success,) = address(faucetHuff).call{value: value}(abi.encodeWithSelector(IFaucet.MAX_WITHDRAWAL.selector));
+        assertTrue(success, "expectRevert: call did not revert");
+    }
+
+    function testFuzz_NameNonPayable(uint256 value) public {
+        vm.assume(value > 0);
+        vm.deal(address(this), value);
+        vm.expectRevert(NonPayable.selector);
+        (bool success,) = address(faucetHuff).call{value: value}(abi.encodeWithSelector(IFaucet.name.selector));
+        assertTrue(success, "expectRevert: call did not revert");
+    }
+
+    function testFuzz_OwnerNonPayable(uint256 value) public {
+        vm.assume(value > 0);
+        vm.deal(address(this), value);
+        vm.expectRevert(NonPayable.selector);
+        (bool success,) = address(faucetHuff).call{value: value}(abi.encodeWithSelector(IFaucet.owner.selector));
+        assertTrue(success, "expectRevert: call did not revert");
+    }
+
+    function testFuzz_WithdrawNonPayable(uint256 value, uint256 amount) public {
+        vm.assume(value > 0);
+        vm.deal(address(this), value);
+        vm.expectRevert(NonPayable.selector);
+        (bool success,) = address(faucetHuff).call{value: value}(abi.encodeWithSelector(IFaucet.withdraw.selector, amount));
+        assertTrue(success, "expectRevert: call did not revert");
     }
 }
