@@ -104,7 +104,7 @@
     insufficientBalanceFaucetJump jumpi  // [withdraw_amount]
 
     // one withdrawal per day per user
-    // revert if accountLastWithdrawal + 1 day < timestamp
+    // revert if accountLastWithdrawal + 1 day > timestamp
     timestamp                           // [timestamp, withdraw_amount]
     LOAD_ACCOUNT_LAST_WITHDRAWAL()      // [value, timestamp, withdraw_amount]
     [ONE_DAY]                           // [1 days, value, timestamp, withdraw_amount]
